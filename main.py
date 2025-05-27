@@ -142,21 +142,22 @@ for i, country in enumerate(selected_countries):
 st.header('GDP over time', divider='gray')
 
 if not filtered_gdp_df.empty:
-    # Add GDP in million USD column
-    filtered_gdp_df = filtered_gdp_df.copy()
-    filtered_gdp_df['GDP (Million USD)'] = filtered_gdp_df['GDP'] / 1e6
+    # Add GDP in billions of USD
+    filtered_gdp_df['GDP (Billions USD)'] = filtered_gdp_df['GDP'] / 1e9
 
-    # Show table with year (no comma), GDP (USD), and GDP (Million USD)
-    # display_df = filtered_gdp_df[['Country Code', 'Year', 'GDP', 'GDP (Million USD)']].copy()
+    # Show table with year (no comma), GDP (USD), and GDP (Billions USD)
+    # display_df = filtered_gdp_df[['Country Code', 'Year', 'GDP', 'GDP (Billions USD)']].copy()
     # display_df['Year'] = display_df['Year'].astype(int).astype(str)  # Ensure no comma
     # st.dataframe(display_df, use_container_width=True)
     
-    # Plot GDP (Million USD) over time
+    # Create a line plot
     st.line_chart(
-        filtered_gdp_df,
+        data=filtered_gdp_df,
         x='Year',
-        y='GDP (Million USD)',
+        y='GDP (Billions USD)',
         color='Country Code',
+        use_container_width=True,
     )
+    
 else:
     st.info("No data available for the selected countries and years.")
