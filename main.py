@@ -34,11 +34,11 @@ def get_gdp_data():
     Returns:
         pd.DataFrame: DataFrame with columns ['Country Name', 'Country Code', 'Year', 'GDP']
     """
-    DATA_FILENAME = Path(__file__).parent / 'data/gdp_data.csv'
+    DATA_FILENAME = Path(__file__).parent / 'data/gdp.csv'
     raw_gdp_df = pd.read_csv(DATA_FILENAME)
 
     MIN_YEAR = 1960
-    MAX_YEAR = 2022
+    MAX_YEAR = 2023
 
     # Pivot year columns into 'Year' and 'GDP'
     gdp_df = raw_gdp_df.melt(
@@ -59,7 +59,7 @@ gdp_df = get_gdp_data()
 # Page content
 
 st.markdown("""
-# :earth_americas: GDP Dashboard
+# :earth_americas: Education Dashboard
 
 Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website.
 The data currently goes up to 2022, and some years may have missing data points.
@@ -79,7 +79,9 @@ from_year, to_year = st.slider(
 )
 
 countries = gdp_df['Country Code'].unique()
-default_countries = ['IND', 'USA', 'CHN', 'JPN', 'KOR', 'SGP']
+# Indonesia, Singapore, USA, China, Japan, Korea (3 letters)
+# There is n/a for certain years in some countries, 
+default_countries = ['SGP', 'USA', 'CHN', 'JPN', 'KOR']
 
 selected_countries = st.multiselect(
     'Which countries would you like to view?',
@@ -140,10 +142,20 @@ for i, country in enumerate(selected_countries):
 st.header('GDP over time', divider='gray')
 
 if not filtered_gdp_df.empty:
+    # Add GDP in million USD column
+    filtered_gdp_df = filtered_gdp_df.copy()
+    filtered_gdp_df['GDP (Million USD)'] = filtered_gdp_df['GDP'] / 1e6
+
+    # Show table with year (no comma), GDP (USD), and GDP (Million USD)
+    # display_df = filtered_gdp_df[['Country Code', 'Year', 'GDP', 'GDP (Million USD)']].copy()
+    # display_df['Year'] = display_df['Year'].astype(int).astype(str)  # Ensure no comma
+    # st.dataframe(display_df, use_container_width=True)
+    
+    # Plot GDP (Million USD) over time
     st.line_chart(
         filtered_gdp_df,
         x='Year',
-        y='GDP',
+        y='GDP (Million USD)',
         color='Country Code',
     )
 else:
