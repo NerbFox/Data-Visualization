@@ -1,5 +1,5 @@
 from pathlib import Path
-from utils import test
+from utils import test, create_bubble, create_plot
 
 import math
 import matplotlib.pyplot as plt
@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import streamlit as st
+import plotly.express as px
 
 # test()
 
@@ -15,9 +16,10 @@ import streamlit as st
 
 # -----------------------------------------------------------------------------
 # Streamlit page configuration
+# -----------------------------------------------------------------------------
 
 st.set_page_config(
-    page_title='Nerb Dashboard',
+    page_title='Punya Nigel Nerb Dashboard',
     page_icon=':earth_americas:',
     # layout='centered',
     layout='wide',
@@ -25,6 +27,13 @@ st.set_page_config(
 
 # -----------------------------------------------------------------------------
 # Data loading and transformation
+# -----------------------------------------------------------------------------
+
+
+# First Five Rows:
+#         Entity Code  Year  Average years of schooling  GDP per capita, PPP (constant 2021 international $) Population (historical) World regions according to OWID 
+# 0  Afghanistan  AFG  1990                    0.871962                                                NaN                12045622.0                             NaN 
+# 1  Afghanistan  AFG  1991                    0.915267                                                NaN                12238831.0                             NaN 
 
 @st.cache_data
 def get_gdp_data():
@@ -53,16 +62,79 @@ def get_gdp_data():
 
     return gdp_df
 
-gdp_df = get_gdp_data()
+@st.cache_data
+def get_avg_years_school_gdp():
+    """
+    Load average years of schooling vs GDP data.
 
-# -----------------------------------------------------------------------------
+    Returns:
+        pd.DataFrame: DataFrame with columns ['Country Code', 'Year', 'Average Years of Schooling', 'GDP']
+    """
+    DATA_FILENAME = 'data/average-years-of-schooling-vs-gdp-per-capita.csv'
+    df = pd.read_csv(DATA_FILENAME)
+    df['Year'] = pd.to_numeric(df['Year'])
+    return df
+
+
+def preprocess_data(
+    dfs: list = [], 
+    columns: list = [
+        'Government expenditure on education, total (% of government expenditure)',
+        'Average years of schooling',
+        'GDP per capita, PPP (constant 2021 international $)',
+        'Productivity: output per hour worked',
+        'Unemployment, total (% of total labor force) (modeled ILO estimate)',
+        'Literacy rate',
+        'Combined - average years of education for 15-64 years male and female youth and adults',
+        '$3.65 a day - Share of population in poverty',
+        ],
+    ):
+    
+    # cleaning missing values
+    # We need to modify the code to only check for columns that exist in each dataframe
+    for df in df_list_cleaned:
+        # Get the intersection of important columns and existing columns in the dataframe
+        columns_to_check = [col for col in columns if col in df.columns]
+        if columns_to_check:  # Only drop if there are columns to check
+            df.dropna(subset=columns_to_check, inplace=True)
+
+    # cleaning duplicates
+    for df in df_list_cleaned:
+        df.drop_duplicates(inplace=True)
+
+import os
+DATA_DIR =  os.path.join(os.path.dirname(__file__), 'data/')
+
+gdp_df = get_gdp_data()
+df_avg_years_school_gdp = get_avg_years_school_gdp()
+education_gdp = pd.read_csv(DATA_DIR + "average-years-of-schooling-vs-gdp-per-capita.csv")
+education_expenditure = pd.read_csv(DATA_DIR + "share-of-education-in-government-expenditure.csv")
+education_productivity = pd.read_csv(DATA_DIR + "productivity-vs-educational-attainment.csv")
+unemployment = pd.read_csv(DATA_DIR + "unemployment-rate.csv")
+education_literacy = pd.read_csv(DATA_DIR + "literacy-rates-vs-average-years-of-schooling.csv")
+education_poverty = pd.read_csv(DATA_DIR + "poverty-vs-mean-schooling.csv")
+
+df_list_cleaned = [
+    gdp_df,
+    df_avg_years_school_gdp,
+    education_gdp,
+    education_expenditure,
+    education_productivity,
+    unemployment,
+    education_literacy,
+    education_poverty,
+]
+
+# Preprocess the data
+preprocess_data(dfs=df_list_cleaned)
+
+# -------------------------------------------------------------
 # Page content
 
 st.markdown("""
 # :earth_americas: Education Dashboard
 
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website.
-The data currently goes up to 2022, and some years may have missing data points.
+Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. The data currently goes up to 2022, and some years may have missing data points.
 """)
 
 # -----------------------------------------------------------------------------
@@ -149,15 +221,73 @@ if not filtered_gdp_df.empty:
     # display_df = filtered_gdp_df[['Country Code', 'Year', 'GDP', 'GDP (Billions USD)']].copy()
     # display_df['Year'] = display_df['Year'].astype(int).astype(str)  # Ensure no comma
     # st.dataframe(display_df, use_container_width=True)
+
+    df_avg_years_school_gdp.rename(
+        columns={
+            'Entity': 'Country',
+            'Code': 'Country Code',
+            'Average years of schooling': 'Average Years of Schooling',
+            'GDP per capita, PPP (constant 2021 international $)': 'GDP (PPP)',
+            'Population (historical)': 'Population',
+            'World regions according to OWID': 'Region (OWID)'
+        },
+        inplace=True
+    )
+
+    # if df_avg_years_school_gdp['Country Code'].isin(selected_countries):
+    
+    
+    display_df = df_avg_years_school_gdp[
+        df_avg_years_school_gdp['Country Code'].isin(selected_countries) &
+        (df_avg_years_school_gdp['Year'] == to_year)
+    ]
+        
+    display_df['Year'] = display_df['Year'].astype(int).astype(str)  # Ensure no comma
+    st.dataframe(display_df, use_container_width=True)
+
+    bubble_plot = create_bubble(display_df, 
+                                #  x_label='Year', 
+                                 x_label='Average Years of Schooling', 
+                                 y_label='GDP (PPP)', 
+                                 size_label='Population', 
+                                 text_label='Country')
+    
+    st.plotly_chart(bubble_plot, use_container_width=True)
+    
+    # scatter_plot with min/max size for bubbles
+    st.scatter_chart(
+        data=display_df,
+        x='GDP (PPP)',
+        y='Average Years of Schooling',
+        color='Country Code',
+        use_container_width=True,
+        size='Population',
+        # size_min=10,   # minimal bubble size
+        # size_max=60,   # maximal bubble size
+    )
     
     # Create a line plot
+    display_df = df_avg_years_school_gdp[
+        df_avg_years_school_gdp['Country Code'].isin(selected_countries) &
+        (df_avg_years_school_gdp['Year'] >= from_year) &
+        (df_avg_years_school_gdp['Year'] <= to_year) 
+    ]
+    
     st.line_chart(
-        data=filtered_gdp_df,
-        x='Year',
-        y='GDP (Billions USD)',
+        data=display_df,
+        x='GDP (PPP)',
+        y='Average Years of Schooling', 
         color='Country Code',
         use_container_width=True,
     )
     
+    st.line_chart(
+        data=filtered_gdp_df,
+        x='Year', 
+        y='GDP (Billions USD)',
+        color='Country Code',
+        use_container_width=True,
+    )
 else:
     st.info("No data available for the selected countries and years.")
+ 
