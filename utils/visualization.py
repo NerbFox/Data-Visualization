@@ -2,26 +2,35 @@ import plotly.express as px
 import pandas as pd
 import streamlit as st
 
-def test():
+def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, custom_tooltip=False, tooltip_columns=None):
     """
-    This is a test function to check if the visualization module is working correctly.
+    Create a bubble chart with color and legend support.
     """
-    print("Visualization module is working correctly.")
-    return True
-
-def create_bubble(df, x_label, y_label, size_label, text_label):
-    """
-    Create a bubble chart showing GDP vs Average Years of Schooling.
-    """
+    color = 'Country Code' if 'Country Code' in df.columns else None
+    hover_data = []
+    if tooltip_columns and custom_tooltip:
+        hover_data = tooltip_columns
+        # {col: True for col in tooltip_columns}
     fig = px.scatter(
         data_frame=df,
-        x=x_label,
-        y=y_label,
-        size=size_label,
+        x=x,
+        y=y,
+        size=size,
         text=text_label,
-        size_max=60
+        color=color,
+        size_max=40,
+        labels={
+            x: x_label,
+            y: y_label,
+            size: size_label,
+            'text': text_label
+        },
+        hover_data=hover_data
     )
-
+    fig.update_traces(textposition='bottom center')
+    # remove the text from the bubbles
+    # fig.update_traces(text=None)
+    fig.update_layout(legend_title_text=color if color else "Legend")
     return fig
 
 def create_plot(df, type, x_label, y_label, size_label, text_label=None, color_label=None):
