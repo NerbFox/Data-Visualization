@@ -1,7 +1,11 @@
 from pathlib import Path
+
 from utils import (
     create_bubble, 
     create_plot, 
+    create_line_chart,
+    create_bar_chart,
+    
     preprocess_data, 
     get_gdp_data, 
     get_avg_years_school_gdp, 
@@ -17,16 +21,13 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
+from config import Config
+
 # -----------------------------------------------------------------------------
 # Streamlit page configuration
 # -----------------------------------------------------------------------------
 
-st.set_page_config(
-    page_title='Education Dashboard',
-    page_icon=':earth_americas:',
-    # layout='centered',
-    layout='wide',
-)
+st.set_page_config(**Config.PAGE_CONFIG)
 
 # -----------------------------------------------------------------------------
 # Data loading and transformation
@@ -153,13 +154,11 @@ filtered_gdp_df = gdp_df[
     (gdp_df['Year'] <= to_year)
 ]
 
-
 filtered_education_expenditure = education_expenditure[
-    (education_expenditure['Entity'].isin(selected_countries)) &
+    (education_expenditure['Code'].isin(selected_countries)) &
     (education_expenditure['Year'] >= from_year) &
     (education_expenditure['Year'] <= to_year)
 ]
-
 
 # -----------------------------------------------------------------------------
 # Metrics for selected years
@@ -310,7 +309,69 @@ st.subheader('Education Relationships', divider='gray')
 if filtered_education_expenditure.empty:
     st.info("No education expenditure data available for the selected countries and years.")
 else:
-    pass
+    # Chart type selection
+    option = st.radio(
+        'Education Expenditure Chart Type:',
+        ['Line Chart', 'Bar Chart'],
+        horizontal=True,
+        help="Line chart: See trends over time. Bar chart: Compare values."
+    )
+    
+    # Create visualizations based on user selection
+    if option == 'Line Chart':
+        st.markdown("### 📈 Education Expenditure Trends")
+        st.markdown("*Click on a line in the legend or chart to highlight it*")
+        
+        chart = create_line_chart(
+            df=filtered_education_expenditure,
+            x='Year',
+            y='Government expenditure on education, total (% of government expenditure)',
+            color='Code',
+            x_label='Year',
+            y_label='Education Expenditure (% of Gov. Expenditure)',
+            height=500,
+            show_markers=True,
+        )
+        st.plotly_chart(chart, use_container_width=True)
+        
+        # Add some insights text
+        
+    elif option == 'Bar Chart':
+        # Bar chart options
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("### 📊 Education Expenditure Comparison")
+        
+        with col2:
+            bar_year = st.selectbox(
+                'Select Year:',
+                options=sorted(filtered_education_expenditure['Year'].unique(), reverse=True),
+                help="Choose which year to compare countries"
+            )
+        
+        # Filter data for selected year
+        bar_data = filtered_education_expenditure[
+            filtered_education_expenditure['Year'] == bar_year
+        ].copy()
+        
+        if not bar_data.empty:
+            chart = create_bar_chart(
+                df=bar_data,
+                x='Code',
+                y='Government expenditure on education, total (% of government expenditure)',
+                color='Code',
+                x_label='Country Code',
+                y_label='Education Expenditure (% of Gov. Expenditure)',
+                height=500,
+                sort_values=True
+            )
+            st.plotly_chart(chart, use_container_width=True)
+            
+        else:
+            st.warning(f"No data available for {bar_year}.")
+
+
 
 # if not filtered_gdp_df.empty:
 #     # Add GDP in billions of USD
