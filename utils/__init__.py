@@ -10,8 +10,7 @@ from .preprocess import (
     preprocess_data, 
     get_gdp_data, 
     get_avg_years_school_gdp, 
-    get_first_last_value, 
-    get_common_year_range, 
+    get_first_last_value,
     get_country_name,
     get_education_expenditure_data
 )
@@ -29,6 +28,5 @@ __all__ = [
     "get_education_expenditure_data",
     
     "get_first_last_value",
-    "get_common_year_range",
     "get_country_name",
 ]
