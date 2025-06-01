@@ -287,7 +287,12 @@ for i, df in enumerate(final_metric_dfs):
     start_year = title_to_start_year.get(title)
     unit = unit_map.get(title, "")
 
-    help_text = f"Data shown is from {start_year} to {last_year}." if start_year and last_year else "No available data exists for the selected country"
+    if start_year and last_year:
+        help_text = f"Data shown is from {start_year}"
+        if start_year != last_year:
+            help_text += f" to {last_year}."
+    else:
+        help_text = "No available data exists for the selected country"
 
     indicators.append({
         "label": title,
