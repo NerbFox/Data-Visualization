@@ -183,22 +183,23 @@ metric_avg_years_school_gdp = df_avg_years_school_gdp[
 
 merged_df = metric_education_expenditure.merge(metric_education_literacy, on=['Entity', 'Code', 'Year'], how='inner').merge(metric_avg_years_school_gdp, on=['Entity', 'Code', 'Year'], how='inner')
 
+print("Code:", highlight_country)
 first_row = merged_df.iloc[0]
 last_row = merged_df.iloc[-1]
 metric_final_year = last_row['Year']
 
 st.subheader(f'Highlights Up to {last_row["Year"]}', divider='gray')
 
-first_expenditure = metric_education_expenditure[metric_education_expenditure['Code'] == 'IDN']['Expenditure'].iat[0] if not metric_education_expenditure.empty else "No Data"
-start_expenditure_year = metric_education_expenditure[metric_education_expenditure['Code'] == 'IDN']['Year'].iat[0]
+first_expenditure = metric_education_expenditure[metric_education_expenditure['Code'] == highlight_country]['Expenditure'].iat[0] if not metric_education_expenditure.empty else "No Data"
+start_expenditure_year = metric_education_expenditure[metric_education_expenditure['Code'] == highlight_country]['Year'].iat[0]
 last_expenditure = last_row['Expenditure']
 
-first_literacy = metric_education_literacy[metric_education_literacy['Code'] == 'IDN']['Literacy'].iat[0] if not metric_education_literacy.empty else "No Data"
-start_literacy_year = metric_education_literacy[metric_education_literacy['Code'] == 'IDN']['Year'].iat[0]
+first_literacy = metric_education_literacy[metric_education_literacy['Code'] == highlight_country]['Literacy'].iat[0] if not metric_education_literacy.empty else "No Data"
+start_literacy_year = metric_education_literacy[metric_education_literacy['Code'] == highlight_country]['Year'].iat[0]
 last_literacy = last_row['Literacy']
 
-first_average_years_school = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == 'IDN']['Schooling'].iat[0] if not metric_avg_years_school_gdp.empty else "No Data"
-start_average_school_gdp_year = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == 'IDN']['Year'].iat[0]
+first_average_years_school = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == highlight_country]['Schooling'].iat[0] if not metric_avg_years_school_gdp.empty else "No Data"
+start_average_school_gdp_year = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == highlight_country]['Year'].iat[0]
 last_average_years_school = last_row['Schooling']
 
 highlight_country_name = get_country_name(highlight_country, df_avg_years_school_gdp)
@@ -232,7 +233,7 @@ else:
 
 indicators = [
     {
-        "label": "Avg. PISA Scores 2022",
+        "label": "Avg. PISA Scores (2022)",
         "first": average_pisa_score,
         "last": average_pisa_score,
         "help": f''' **PISA Reading Score**  
