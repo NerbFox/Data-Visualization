@@ -9,7 +9,7 @@ from utils import (
     preprocess_data, 
     get_gdp_data, 
     get_avg_years_school_gdp, 
-    get_first_last_value, 
+    get_pisa_score,
     get_country_name,
     get_education_expenditure_data
 )
@@ -163,113 +163,142 @@ filtered_education_expenditure = education_expenditure[
 # -----------------------------------------------------------------------------
 # Metrics for selected years
 
-# Filter and rename columns beforehand
+metric_dfs = [{'title': 'Education Expenditure', 'data': None}, 
+              {'title': 'Literacy Rate', 'data': None}, 
+              {'title': 'Avg. Years of Schooling', 'data': None}]
+
 metric_education_expenditure = education_expenditure[
     (education_expenditure['Code'] == highlight_country) &
     (education_expenditure['Government expenditure on education, total (% of government expenditure)'].notna())
 ][['Entity', 'Code', 'Year', 'Government expenditure on education, total (% of government expenditure)']].rename(
-    columns={'Government expenditure on education, total (% of government expenditure)': 'Expenditure'}
+    columns={'Government expenditure on education, total (% of government expenditure)': 'Value'}
 )
 
 metric_education_literacy = education_literacy[
     (education_literacy['Code'] == highlight_country) &
     (education_literacy['Literacy rate'].notna())
-][['Entity', 'Code', 'Year', 'Literacy rate']].rename(columns={'Literacy rate': 'Literacy'})
+][['Entity', 'Code', 'Year', 'Literacy rate']].rename(columns={'Literacy rate': 'Value'})
 
 metric_avg_years_school_gdp = df_avg_years_school_gdp[
     (df_avg_years_school_gdp['Code'] == highlight_country) &
     (df_avg_years_school_gdp['Average years of schooling'].notna())
-][['Entity', 'Code', 'Year', 'Average years of schooling']].rename(columns={'Average years of schooling': 'Schooling'})
+][['Entity', 'Code', 'Year', 'Average years of schooling']].rename(columns={'Average years of schooling': 'Value'})
 
-merged_df = metric_education_expenditure.merge(metric_education_literacy, on=['Entity', 'Code', 'Year'], how='inner').merge(metric_avg_years_school_gdp, on=['Entity', 'Code', 'Year'], how='inner')
+data_map = {
+    'Education Expenditure': metric_education_expenditure,
+    'Literacy Rate': metric_education_literacy,
+    'Avg. Years of Schooling': metric_avg_years_school_gdp
+}
 
-print("Code:", highlight_country)
-first_row = merged_df.iloc[0]
-last_row = merged_df.iloc[-1]
-metric_final_year = last_row['Year']
+for metric in metric_dfs:
+    metric['data'] = data_map.get(metric['title'])
 
-st.subheader(f'Highlights Up to {last_row["Year"]}', divider='gray')
+metric_sets = [set(df['data']['Year']) for df in metric_dfs if df['data'] is not None and not df['data'].empty]
+common_years = set.intersection(*metric_sets) if metric_sets else None
 
-first_expenditure = metric_education_expenditure[metric_education_expenditure['Code'] == highlight_country]['Expenditure'].iat[0] if not metric_education_expenditure.empty else "No Data"
-start_expenditure_year = metric_education_expenditure[metric_education_expenditure['Code'] == highlight_country]['Year'].iat[0]
-last_expenditure = last_row['Expenditure']
+metric_final_year = None
+final_metric_dfs = []
 
-first_literacy = metric_education_literacy[metric_education_literacy['Code'] == highlight_country]['Literacy'].iat[0] if not metric_education_literacy.empty else "No Data"
-start_literacy_year = metric_education_literacy[metric_education_literacy['Code'] == highlight_country]['Year'].iat[0]
-last_literacy = last_row['Literacy']
+for df in metric_dfs:
+    if df['data'] is not None and not df['data'].empty:
+        if common_years:
+            metric_final_year = max(common_years)
+            filtered_data = df['data'][df['data']['Year'] == metric_final_year]
+        else:
+            filtered_data = df['data'].sort_values('Year').iloc[[-1]]
+        final_metric_dfs.append({'title': df['title'], 'data': filtered_data})
+    else:
+        final_metric_dfs.append({'title': df['title'], 'data': pd.DataFrame(columns=['Entity', 'Code', 'Year', 'Value'])})
 
-first_average_years_school = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == highlight_country]['Schooling'].iat[0] if not metric_avg_years_school_gdp.empty else "No Data"
-start_average_school_gdp_year = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == highlight_country]['Year'].iat[0]
-last_average_years_school = last_row['Schooling']
+if not metric_final_year and final_metric_dfs:
+    metric_final_year = max(
+        (df['data']['Year'].iat[0] for df in final_metric_dfs if not df['data'].empty),
+        default=None
+    )
 
+def get_first_value(df):
+    return (df['Value'].iat[0], df['Year'].iat[0]) if not df.empty else ("No Data", None)
+
+first_expenditure, start_expenditure_year = get_first_value(metric_education_expenditure)
+first_literacy, start_literacy_year = get_first_value(metric_education_literacy)
+first_avg_school, start_average_school_gdp_year = get_first_value(metric_avg_years_school_gdp)
+
+first_metrics = [get_first_value(df['data'])[0] if df['data'] is not None else "No Data" for df in metric_dfs]
+
+final_metric_years = []
+last_metrics = []
+for df in final_metric_dfs:
+    if not df['data'].empty:
+        final_metric_years.append(df['data']['Year'].iat[0])
+        last_metrics.append(df['data']['Value'].iat[0])
+    else:
+        final_metric_years.append(None)
+        last_metrics.append("No Data")
+
+# --- PISA Scores ---
 highlight_country_name = get_country_name(highlight_country, df_avg_years_school_gdp)
 
-pisa_reading = pisa_reading_scores.loc[
-    (pisa_reading_scores['Countries'] == highlight_country_name) & 
-    pisa_reading_scores['PISA reading scores, 2022'].notna(),
-    'PISA reading scores, 2022'
-]
-
-pisa_math = pisa_math_scores.loc[
-    (pisa_math_scores['Countries'] == highlight_country_name) & 
-    pisa_math_scores['PISA math scores, 2022'].notna(),
-    'PISA math scores, 2022'
-]
-
-pisa_science = pisa_science_scores.loc[
-    (pisa_science_scores['Countries'] == highlight_country_name) & 
-    pisa_science_scores['PISA science scores, 2022'].notna(),
-    'PISA science scores, 2022'
-]
-
-highlight_pisa_reading_score = pisa_reading.iat[0] if not pisa_reading.empty else "No Data"
-highlight_pisa_math_score = pisa_math.iat[0] if not pisa_math.empty else "No Data"
-highlight_pisa_science_score = pisa_science.iat[0] if not pisa_science.empty else "No Data"
+highlight_pisa_reading_score = get_pisa_score(pisa_reading_scores, highlight_country_name, 'PISA reading scores, 2022')
+highlight_pisa_math_score = get_pisa_score(pisa_math_scores, highlight_country_name, 'PISA math scores, 2022')
+highlight_pisa_science_score = get_pisa_score(pisa_science_scores, highlight_country_name, 'PISA science scores, 2022')
 
 if "No Data" in (highlight_pisa_reading_score, highlight_pisa_math_score, highlight_pisa_science_score):
     average_pisa_score = "No Data"
 else:
-    average_pisa_score = (highlight_pisa_reading_score + highlight_pisa_math_score + highlight_pisa_science_score) / 3
+    average_pisa_score = (
+        highlight_pisa_reading_score + highlight_pisa_math_score + highlight_pisa_science_score
+    ) / 3
+
+# --- Display ---
+st.subheader(f'Highlights Up to {metric_final_year}', divider='gray')
 
 indicators = [
     {
         "label": "Avg. PISA Scores (2022)",
         "first": average_pisa_score,
         "last": average_pisa_score,
-        "help": f''' **PISA Reading Score**  
-        {highlight_pisa_reading_score if highlight_pisa_reading_score != "No Data" else "No Data"}  
-        **PISA Math Score**  
-        {highlight_pisa_math_score if highlight_pisa_math_score != "No Data" else "No Data"}  
-        **PISA Science Score**  
-        {highlight_pisa_science_score if highlight_pisa_science_score != "No Data" else "No Data"}  
-        ''',
+        "help": f'''**PISA Reading Score**  
+{highlight_pisa_reading_score}  
+**PISA Math Score**  
+{highlight_pisa_math_score}  
+**PISA Science Score**  
+{highlight_pisa_science_score}''',
         "unit": ""
-    },
-    {
-        "label": "Education Expenditure",
-        "first": first_expenditure,
-        "last": last_expenditure,
-        "help": f"Data shown is from {start_expenditure_year} - {metric_final_year}.",
-        "unit": "%"
-    },
-    {
-        "label": "Avg. Years of Schooling",
-        "first": first_average_years_school,
-        "last": last_average_years_school,
-        "help": f"Data shown is from {start_average_school_gdp_year} - {metric_final_year}.",
-        "unit": ""
-    },
-    {
-        "label": "Literacy Rate",
-        "first": first_literacy,
-        "last": last_literacy,
-        "help": f"Data shown is from {start_literacy_year} - {metric_final_year}.",
-        "unit": "%"
-    },
+    }
 ]
 
-cols = st.columns(len(indicators))
+title_to_start_year = {
+    "Education Expenditure": start_expenditure_year,
+    "Literacy Rate": start_literacy_year,
+    "Avg. Years of Schooling": start_average_school_gdp_year
+}
 
+unit_map = {
+    "Education Expenditure": "%",
+    "Literacy Rate": "%",
+    "Avg. Years of Schooling": ""
+}
+
+for i, df in enumerate(final_metric_dfs):
+    title = df['title']
+    last_value = df['data']['Value'].iat[0] if not df['data'].empty else "No Data"
+    last_year = df['data']['Year'].iat[0] if not df['data'].empty else None
+    first_value = first_metrics[i]
+    start_year = title_to_start_year.get(title)
+    unit = unit_map.get(title, "")
+
+    help_text = f"Data shown is from {start_year} to {last_year}." if start_year and last_year else "No available data exists for the selected country"
+
+    indicators.append({
+        "label": title,
+        "first": first_value,
+        "last": last_value,
+        "help": help_text,
+        "unit": unit
+    })
+
+# --- Streamlit Metric Display ---
+cols = st.columns(len(indicators))
 
 for i, indicator in enumerate(indicators):
     col = cols[i % len(cols)]
@@ -279,28 +308,20 @@ for i, indicator in enumerate(indicators):
         label = indicator["label"]
         unit = indicator["unit"]
 
-        # If either value is a string (e.g., "No Data"), display as-is
         if isinstance(first, str) or isinstance(last, str):
             value = last if isinstance(last, str) else first
             growth = ""
             delta_color = "off"
         elif math.isnan(first) or math.isnan(last) or first == 0 or first - last == 0:
+            value = f"{last:,.2f}{unit}"
             growth = ""
             delta_color = "off"
-            value = f"{last:,.2f}{unit}" if unit else f"{last:,.2f}"
         else:
             growth = f"{last / first:,.2f}x"
+            value = f"{last:,.2f}{unit}"
             delta_color = "normal"
-            value = f"{last:,.2f}{unit}" if unit else f"{last:,.2f}"
 
-        st.metric(
-            label=f"{label}",
-            value=value,
-            delta=growth,
-            delta_color=delta_color,
-            help=indicator['help'] if 'help' in indicator else ""
-        )
-
+        st.metric(label=label, value=value, delta=growth, delta_color=delta_color, help=indicator["help"])
         
 # -----------------------------------------------------------------------------
 # Visualization

@@ -89,20 +89,6 @@ def get_avg_years_school_gdp():
     return df
 
 @st.cache_data
-def get_first_last_value(df, column_name, code, from_year, to_year):
-    """
-    Safely extracts the first and last value for a specific column in a DataFrame,
-    filtered by country code and year. Returns NaN if the row is missing.
-    """
-    first_row = df[(df['Year'] == from_year) & (df['Code'] == code)]
-    last_row = df[(df['Year'] == to_year) & (df['Code'] == code)]
-
-    first_value = first_row[column_name].iat[0] if not first_row.empty else float('nan')
-    last_value = last_row[column_name].iat[0] if not last_row.empty else float('nan')
-
-    return first_value, last_value
-
-@st.cache_data
 def get_country_name(code, df, code_column='Code', name_column='Entity'):
     """
     Given a country code and a DataFrame, return the corresponding country name.
@@ -117,3 +103,8 @@ def get_country_name(code, df, code_column='Code', name_column='Entity'):
     if not match.empty:
         return match[name_column].iloc[0]
     return None
+
+@st.cache_data
+def get_pisa_score(df, country, col):
+    score = df.loc[(df['Countries'] == country) & df[col].notna(), col]
+    return score.iat[0] if not score.empty else "No Data"
