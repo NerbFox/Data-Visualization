@@ -6,7 +6,6 @@ from utils import (
     get_gdp_data, 
     get_avg_years_school_gdp, 
     get_first_last_value, 
-    get_common_year_range, 
     get_country_name,
     get_education_expenditure_data
 )
@@ -165,48 +164,45 @@ filtered_education_expenditure = education_expenditure[
 # -----------------------------------------------------------------------------
 # Metrics for selected years
 
-# st.header(f'GDP in {to_year}', divider='gray')
-# highlight_country = 'IDN'
+# Filter and rename columns beforehand
+metric_education_expenditure = education_expenditure[
+    (education_expenditure['Code'] == highlight_country) &
+    (education_expenditure['Government expenditure on education, total (% of government expenditure)'].notna())
+][['Entity', 'Code', 'Year', 'Government expenditure on education, total (% of government expenditure)']].rename(
+    columns={'Government expenditure on education, total (% of government expenditure)': 'Expenditure'}
+)
+
+metric_education_literacy = education_literacy[
+    (education_literacy['Code'] == highlight_country) &
+    (education_literacy['Literacy rate'].notna())
+][['Entity', 'Code', 'Year', 'Literacy rate']].rename(columns={'Literacy rate': 'Literacy'})
+
+metric_avg_years_school_gdp = df_avg_years_school_gdp[
+    (df_avg_years_school_gdp['Code'] == highlight_country) &
+    (df_avg_years_school_gdp['Average years of schooling'].notna())
+][['Entity', 'Code', 'Year', 'Average years of schooling']].rename(columns={'Average years of schooling': 'Schooling'})
+
+merged_df = metric_education_expenditure.merge(metric_education_literacy, on=['Entity', 'Code', 'Year'], how='inner').merge(metric_avg_years_school_gdp, on=['Entity', 'Code', 'Year'], how='inner')
+
+first_row = merged_df.iloc[0]
+last_row = merged_df.iloc[-1]
+metric_final_year = last_row['Year']
+
+st.subheader(f'Highlights Up to {last_row["Year"]}', divider='gray')
+
+first_expenditure = metric_education_expenditure[metric_education_expenditure['Code'] == 'IDN']['Expenditure'].iat[0] if not metric_education_expenditure.empty else "No Data"
+start_expenditure_year = metric_education_expenditure[metric_education_expenditure['Code'] == 'IDN']['Year'].iat[0]
+last_expenditure = last_row['Expenditure']
+
+first_literacy = metric_education_literacy[metric_education_literacy['Code'] == 'IDN']['Literacy'].iat[0] if not metric_education_literacy.empty else "No Data"
+start_literacy_year = metric_education_literacy[metric_education_literacy['Code'] == 'IDN']['Year'].iat[0]
+last_literacy = last_row['Literacy']
+
+first_average_years_school = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == 'IDN']['Schooling'].iat[0] if not metric_avg_years_school_gdp.empty else "No Data"
+start_average_school_gdp_year = metric_avg_years_school_gdp[metric_avg_years_school_gdp['Code'] == 'IDN']['Year'].iat[0]
+last_average_years_school = last_row['Schooling']
+
 highlight_country_name = get_country_name(highlight_country, df_avg_years_school_gdp)
-
-df_column_pairs = [
-    (education_expenditure, 'Government expenditure on education, total (% of government expenditure)'),
-    (education_literacy, 'Literacy rate'),
-    (df_avg_years_school_gdp, 'Average years of schooling')
-]
-overall_start_year, overall_end_year = get_common_year_range(highlight_country, df_column_pairs)
-st.subheader(f'Highlights During {overall_start_year}-{overall_end_year}', divider='gray')
-
-# print(f"Overall Start Year: {overall_start_year}, Overall End Year: {overall_end_year}")
-
-first_year_df = gdp_df[gdp_df['Year'] == overall_start_year]
-last_year_df = gdp_df[gdp_df['Year'] == overall_end_year]
-
-first_expenditure, last_expenditure = get_first_last_value(
-    education_expenditure,
-    'Government expenditure on education, total (% of government expenditure)',
-    highlight_country,
-    overall_start_year,
-    overall_end_year
-)
-
-first_literacy, last_literacy = get_first_last_value(
-    education_literacy,
-    'Literacy rate',
-    highlight_country,
-    overall_start_year,
-    overall_end_year
-)
-
-first_average_years_school, last_average_years_school = get_first_last_value(
-    df_avg_years_school_gdp,
-    'Average years of schooling',
-    highlight_country,
-    overall_start_year,
-    overall_end_year
-)
-
-# print(f"Literacy Rate: {first_literacy} -> {last_literacy}")
 
 pisa_reading = pisa_reading_scores.loc[
     (pisa_reading_scores['Countries'] == highlight_country_name) & 
@@ -240,29 +236,40 @@ indicators = [
         "label": "Avg. PISA Scores 2022",
         "first": average_pisa_score,
         "last": average_pisa_score,
+        "help": f''' **PISA Reading Score**  
+        {highlight_pisa_reading_score if highlight_pisa_reading_score != "No Data" else "No Data"}  
+        **PISA Math Score**  
+        {highlight_pisa_math_score if highlight_pisa_math_score != "No Data" else "No Data"}  
+        **PISA Science Score**  
+        {highlight_pisa_science_score if highlight_pisa_science_score != "No Data" else "No Data"}  
+        ''',
         "unit": ""
     },
     {
         "label": "Education Expenditure",
         "first": first_expenditure,
         "last": last_expenditure,
+        "help": f"Data shown is from {start_expenditure_year} - {metric_final_year}.",
         "unit": "%"
     },
     {
         "label": "Avg. Years of Schooling",
         "first": first_average_years_school,
         "last": last_average_years_school,
+        "help": f"Data shown is from {start_average_school_gdp_year} - {metric_final_year}.",
         "unit": ""
     },
     {
         "label": "Literacy Rate",
         "first": first_literacy,
         "last": last_literacy,
+        "help": f"Data shown is from {start_literacy_year} - {metric_final_year}.",
         "unit": "%"
     },
 ]
 
 cols = st.columns(len(indicators))
+
 
 for i, indicator in enumerate(indicators):
     col = cols[i % len(cols)]
@@ -290,8 +297,10 @@ for i, indicator in enumerate(indicators):
             label=f"{label}",
             value=value,
             delta=growth,
-            delta_color=delta_color
+            delta_color=delta_color,
+            help=indicator['help'] if 'help' in indicator else ""
         )
+
         
 # -----------------------------------------------------------------------------
 # Visualization

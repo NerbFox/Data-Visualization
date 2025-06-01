@@ -103,52 +103,6 @@ def get_first_last_value(df, column_name, code, from_year, to_year):
     return first_value, last_value
 
 @st.cache_data
-def get_common_year_range(country_code, df_column_pairs):
-    """
-    Given a country code and a list of (DataFrame, column_name) pairs,
-    return the overlapping available year range across all datasets based on
-    non-NaN values in their respective value columns.
-    """
-    year_ranges = []
-
-    for idx, (df, value_column) in enumerate(df_column_pairs):
-        if not {'Code', 'Year', value_column}.issubset(df.columns):
-            print(f"Dataset {idx} skipped: missing 'Code', 'Year', or '{value_column}' column.")
-            continue
-
-        # Clean and filter
-        df = df.copy()
-        df['Code'] = df['Code'].astype(str).str.strip().str.upper()
-
-        filtered = df[
-            (df['Code'] == country_code.strip().upper()) &
-            (df['Year'].notna()) &
-            (pd.to_numeric(df['Year'], errors='coerce').notnull()) &
-            (df[value_column].notna())
-        ]
-        filtered['Year'] = filtered['Year'].astype(int)
-
-        if not filtered.empty:
-            min_year = filtered['Year'].min()
-            max_year = filtered['Year'].max()
-            year_ranges.append((min_year, max_year))
-        else:
-            print(f"Dataset {idx} has no valid data for {country_code} in '{value_column}'.")
-
-    if not year_ranges:
-        return None
-
-    print(f"Year ranges for {country_code}: {year_ranges}")
-    # Find the overlapping year range
-    overall_start = max(start for start, _ in year_ranges)
-    overall_end = min(end for _, end in year_ranges)
-
-    if overall_start > overall_end:
-        return None  # No overlap
-
-    return overall_start, overall_end
-
-@st.cache_data
 def get_country_name(code, df, code_column='Code', name_column='Entity'):
     """
     Given a country code and a DataFrame, return the corresponding country name.
