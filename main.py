@@ -50,18 +50,25 @@ pisa_math_scores = pd.read_csv(DATA_DIR + "pisa-math-scores.csv")
 pisa_science_scores = pd.read_csv(DATA_DIR + "pisa-science-scores.csv")
 
 # Merge the three PISA DataFrames on 'Countries' and calculate the average row-wise
-pisa_avg = pisa_reading_scores[['Countries', 'PISA reading scores, 2022']].merge(
-    pisa_math_scores[['Countries', 'PISA math scores, 2022']],
-    on='Countries',
-    how='outer'
-).merge(
-    pisa_science_scores[['Countries', 'PISA science scores, 2022']],
-    on='Countries',
-    how='outer'
+pisa_reading = pisa_reading_scores[['Countries', 'PISA reading scores, 2022', 'Global rank']].rename(
+    columns={'Global rank': 'Reading global rank'}
 )
+
+pisa_math = pisa_math_scores[['Countries', 'PISA math scores, 2022', 'Global rank']].rename(
+    columns={'Global rank': 'Math global rank'}
+)
+
+pisa_science = pisa_science_scores[['Countries', 'PISA science scores, 2022', 'Global rank']].rename(
+    columns={'Global rank': 'Science global rank'}
+)
+
+pisa_avg = pisa_reading.merge(pisa_math, on='Countries', how='outer').merge(pisa_science, on='Countries', how='outer')
 pisa_avg['PISA average scores, 2022'] = pisa_avg[
     ['PISA reading scores, 2022', 'PISA math scores, 2022', 'PISA science scores, 2022']
 ].mean(axis=1, skipna=True)
+
+pisa_avg = pisa_avg.sort_values(by='PISA average scores, 2022', ascending=False).reset_index(drop=True)
+pisa_avg['Overall rank'] = pisa_avg.index + 1
 
 df_list_cleaned = [
     gdp_df,
@@ -238,16 +245,32 @@ for df in final_metric_dfs:
 # --- PISA Scores ---
 highlight_country_name = get_country_name(highlight_country, df_avg_years_school_gdp)
 
-highlight_pisa_reading_score = get_pisa_score(pisa_reading_scores, highlight_country_name, 'PISA reading scores, 2022')
-highlight_pisa_math_score = get_pisa_score(pisa_math_scores, highlight_country_name, 'PISA math scores, 2022')
-highlight_pisa_science_score = get_pisa_score(pisa_science_scores, highlight_country_name, 'PISA science scores, 2022')
+hightlight_pisa_df = pisa_avg[pisa_avg['Countries'] == highlight_country_name]
 
-if "No Data" in (highlight_pisa_reading_score, highlight_pisa_math_score, highlight_pisa_science_score):
-    average_pisa_score = "No Data"
+if not hightlight_pisa_df.empty:
+    row = hightlight_pisa_df.iloc[0]
+
+    average_pisa_score = row['PISA average scores, 2022']
+    average_pisa_rank = int(row['Overall rank'])
+
+    highlight_pisa_math_score = row['PISA math scores, 2022']
+    math_pisa_rank = f"Rank {int(row['Math global rank'])} - "
+
+    highlight_pisa_reading_score = row['PISA reading scores, 2022']
+    reading_pisa_rank = f"Rank {int(row['Reading global rank'])} - "
+
+    highlight_pisa_science_score = row['PISA science scores, 2022']
+    science_pisa_rank = f"Rank {int(row['Science global rank'])} - "
+
 else:
-    average_pisa_score = (
-        highlight_pisa_reading_score + highlight_pisa_math_score + highlight_pisa_science_score
-    ) / 3
+    average_pisa_score = "No Data"
+    average_pisa_rank = ""
+    highlight_pisa_math_score = "No Data"
+    math_pisa_rank = ""
+    highlight_pisa_reading_score = "No Data"
+    reading_pisa_rank = ""
+    highlight_pisa_science_score = "No Data"
+    science_pisa_rank = ""
 
 # --- Display ---
 st.subheader(f'Highlights Up to {metric_final_year}', divider='gray')
@@ -255,14 +278,14 @@ st.subheader(f'Highlights Up to {metric_final_year}', divider='gray')
 indicators = [
     {
         "label": "Avg. PISA Scores (2022)",
-        "first": average_pisa_score,
-        "last": average_pisa_score,
-        "help": f'''**PISA Reading Score**  
-{highlight_pisa_reading_score}  
+        "first": f"Rank {average_pisa_rank} - {average_pisa_score:.2f}" if average_pisa_score != "No Data" else "No Data",
+        "last": f"Rank {average_pisa_rank} - {average_pisa_score:.2f}" if average_pisa_score != "No Data" else "No Data",
+        "help": f"""**PISA Reading Score**  
+{reading_pisa_rank}{highlight_pisa_reading_score}  
 **PISA Math Score**  
-{highlight_pisa_math_score}  
+{math_pisa_rank}{highlight_pisa_math_score}  
 **PISA Science Score**  
-{highlight_pisa_science_score}''',
+{science_pisa_rank}{highlight_pisa_science_score}""",
         "unit": ""
     }
 ]
