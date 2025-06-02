@@ -5,6 +5,7 @@ from utils import (
     create_plot, 
     create_line_chart,
     create_bar_chart,
+    display_two_vis,
     
     preprocess_data, 
     get_gdp_data, 
@@ -90,10 +91,10 @@ preprocess_data(dfs=df_list_cleaned)
 # -------------------------------------------------------------
 # Page content
 # :earth_americas:   world icon
-st.markdown("""
-# Education Dashboard 
-This dashboard provides insights into the relationship between education and economic indicators across various countries.
-""")
+st.header('Education Dashboard :earth_americas:')
+# st.markdown("""
+# This dashboard provides insights into the relationship between education and economic indicators across various countries.
+# """)
 
 # -----------------------------------------------------------------------------
 # User controls
@@ -254,13 +255,13 @@ if not hightlight_pisa_df.empty:
     average_pisa_rank = int(row['Overall rank'])
 
     highlight_pisa_math_score = row['PISA math scores, 2022']
-    math_pisa_rank = f"Rank {int(row['Math global rank'])} - "
+    math_pisa_rank = f"Rank {int(row['Math global rank'])}"
 
     highlight_pisa_reading_score = row['PISA reading scores, 2022']
-    reading_pisa_rank = f"Rank {int(row['Reading global rank'])} - "
+    reading_pisa_rank = f"Rank {int(row['Reading global rank'])}"
 
     highlight_pisa_science_score = row['PISA science scores, 2022']
-    science_pisa_rank = f"Rank {int(row['Science global rank'])} - "
+    science_pisa_rank = f"Rank {int(row['Science global rank'])}"
 
 else:
     average_pisa_score = "No Data"
@@ -278,14 +279,19 @@ st.subheader(f'Highlights Up to {metric_final_year}', divider='gray')
 indicators = [
     {
         "label": "Avg. PISA Scores (2022)",
-        "first": f"Rank {average_pisa_rank} - {average_pisa_score:.2f}" if average_pisa_score != "No Data" else "No Data",
-        "last": f"Rank {average_pisa_rank} - {average_pisa_score:.2f}" if average_pisa_score != "No Data" else "No Data",
-        "help": f"""**PISA Reading Score**  
-{reading_pisa_rank}{highlight_pisa_reading_score}  
-**PISA Math Score**  
-{math_pisa_rank}{highlight_pisa_math_score}  
-**PISA Science Score**  
-{science_pisa_rank}{highlight_pisa_science_score}""",
+        "first": (
+            f"{average_pisa_score:.2f} (Rank {average_pisa_rank})"
+            if average_pisa_score != "No Data" else "No Data"
+        ),
+        "last": (
+            f"{average_pisa_score:.2f} (Rank {average_pisa_rank})"
+            if average_pisa_score != "No Data" else "No Data"
+        ),
+        "help": (
+            f"**PISA Reading Score**: {highlight_pisa_reading_score:.3f} ({reading_pisa_rank})  \n"
+            f"**PISA Math Score**: {highlight_pisa_math_score:.3f} ({math_pisa_rank})  \n"
+            f"**PISA Science Score**: {highlight_pisa_science_score:.3f} ({science_pisa_rank})"
+        ),
         "unit": ""
     }
 ]
@@ -349,13 +355,38 @@ for i, indicator in enumerate(indicators):
             value = f"{last:,.2f}{unit}"
             delta_color = "normal"
 
-        st.metric(label=label, value=value, delta=growth, delta_color=delta_color, help=indicator["help"])
+        st.metric(label=label, value=value, delta=growth, delta_color=delta_color, help=indicator["help"], border=False, label_visibility="visible")
         
 # -----------------------------------------------------------------------------
 # Visualization
+# -----------------------------------------------------------------------------
 
-st.subheader('Education Relationships', divider='gray')
+# Visualizations of Average Years of Schooling vs GDP
+avg_schooling_df = df_avg_years_school_gdp.rename(
+    columns={
+        'Entity': 'Country',
+        'Code': 'Country Code',
+        'Average years of schooling': 'Average Years of Schooling',
+        'GDP per capita, PPP (constant 2021 international $)': 'GDP (PPP)',
+        'Population (historical)': 'Population',
+        'World regions according to OWID': 'Region (OWID)'
+    }
+)
 
+# st.markdown('### :school: Average Years of Schooling vs GDP')
+st.subheader(':school: Average Years of Schooling vs GDP', divider='gray')
+display_two_vis(
+    avg_schooling_df=avg_schooling_df,
+    pisa_avg=pisa_avg,
+    selected_countries=selected_countries,
+    from_year=from_year,
+    to_year=to_year,
+    height=400,
+)
+
+# -----------------------------------------------------------------------------
+
+# Education Expenditure Visualization
 if filtered_education_expenditure.empty:
     st.info("No education expenditure data available for the selected countries and years.")
 else:
@@ -369,7 +400,7 @@ else:
     
     # Create visualizations based on user selection
     if option == 'Line Chart':
-        st.markdown("### 📈 Education Expenditure Trends")
+        st.subheader("📈 Education Expenditure Trends", divider='gray')
         st.markdown("*Click on a line in the legend or chart to highlight it*")
         
         chart = create_line_chart(
@@ -430,83 +461,4 @@ else:
 # else:
 #     st.info("No data available for the selected countries and years.")
 
-# Prepare data for bubble and line plots
-avg_schooling_df = df_avg_years_school_gdp.rename(
-    columns={
-        'Entity': 'Country',
-        'Code': 'Country Code',
-        'Average years of schooling': 'Average Years of Schooling',
-        'GDP per capita, PPP (constant 2021 international $)': 'GDP (PPP)',
-        'Population (historical)': 'Population',
-        'World regions according to OWID': 'Region (OWID)'
-    }
-)
-
-# Bubble plot: use latest year in selected range
-bubble_year = to_year
-bubble_data = avg_schooling_df[
-    (avg_schooling_df['Country Code'].isin(selected_countries)) &
-    (avg_schooling_df['Year'] == bubble_year)
-].copy()
-
-bubble_data = bubble_data.merge(
-    pisa_avg,
-    left_on='Country',
-    right_on='Countries',
-    how='left'
-)
-
-if bubble_data.empty:
-    st.info("No average years of schooling data available for the selected countries and years.")
-else:
-    # Fill missing PISA scores for clear "No Data" indication
-    min_pisa = bubble_data['PISA average scores, 2022'].min()
-    fillna_val = int(min_pisa - 165) if pd.notnull(min_pisa) else -999
-    bubble_data['PISA average scores, 2022'] = bubble_data['PISA average scores, 2022'].fillna(fillna_val)
-    bubble_data['PISA average score 2022'] = bubble_data['PISA average scores, 2022'].apply(
-        lambda x: "No Pisa Data" if x == fillna_val else round(x, 2)
-    )
-
-    # Layout: Bubble plot and line plot side by side
-    col1, col2 = st.columns(2)
-    with col1:
-        bubble_plot = create_bubble(
-            bubble_data,
-            x='GDP (PPP)',
-            y='Average Years of Schooling',
-            size='PISA average scores, 2022',
-            size_label='PISA average score 2022',
-            x_label='GDP (US$)',
-            y_label='Average Years of Schooling',
-            text_label='Country',
-            custom_tooltip=True,
-            tooltip_columns=[
-                'Country',
-                'Country Code',
-                'Region (OWID)',
-                'Year',
-                'GDP (PPP)',
-                'Average Years of Schooling',
-                'PISA average score 2022'
-            ],
-        )
-        st.plotly_chart(bubble_plot, use_container_width=True, height=500)
-
-    with col2:
-        # Line plot: all years in selected range
-        line_data = avg_schooling_df[
-            (avg_schooling_df['Country Code'].isin(selected_countries)) &
-            (avg_schooling_df['Year'] >= from_year) &
-            (avg_schooling_df['Year'] <= to_year)
-        ].copy()
-        if line_data.empty:
-            st.info("No average years of schooling data available for the selected countries and years.")
-        else:
-            st.line_chart(
-                data=line_data,
-                x='GDP (PPP)',
-                y='Average Years of Schooling',
-                color='Country Code',
-                use_container_width=True,
-                height=500,
-            )
+# -----------------------------------------------------------------------------

@@ -8,7 +8,8 @@ base = "dark"
 # backgroundColor = "#f0f2f6" 
 # secondaryBackgroundColor = "#ffffff"
 # textColor = "#31333f"
-# font = "sans serif"
+headingFont = "serif"
+font = "sans-serif"
 
 # # Primary accent color.
 # primaryColor =

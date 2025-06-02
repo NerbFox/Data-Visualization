@@ -4,6 +4,7 @@ from .visualization import (
     create_plot,
     create_line_chart,
     create_bar_chart,
+    display_two_vis
     
 )
 from .preprocess import (
@@ -20,6 +21,7 @@ __all__ = [
     "create_plot",
     "create_line_chart",
     "create_bar_chart",
+    "display_two_vis",
     
     "preprocess_data",
     

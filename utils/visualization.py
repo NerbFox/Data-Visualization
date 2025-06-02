@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import streamlit as st
 
-def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, custom_tooltip=False, tooltip_columns=None):
+def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, custom_tooltip=False, tooltip_columns=None, height=500):
     """
     Create a bubble chart with color and legend support.
     """
@@ -19,7 +19,7 @@ def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, cust
         x=x,
         y=y,
         size=size,
-        text=text_label,
+        # text=text_label,
         color=color,
         size_max=40,
         labels={
@@ -33,7 +33,8 @@ def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, cust
     fig.update_traces(textposition='bottom center')
     # remove the text from the bubbles
     # fig.update_traces(text=None)
-    fig.update_layout(legend_title_text=color if color else "Legend")
+    fig.update_layout(legend_title_text=color if color else "Legend", 
+                        height=height)
     return fig
 
 def create_plot(df, type, x_label, y_label, size_label, text_label=None, color_label=None):
@@ -92,6 +93,87 @@ def remove_nans(df):
     df = df.dropna()
     return df
 
+def display_two_vis(
+    avg_schooling_df, pisa_avg, selected_countries, from_year, to_year, height=500
+):
+    """
+    Display a bubble plot (latest year) and a line plot (all years in range)
+    for average years of schooling vs GDP, with PISA scores as bubble size.
+    """
+    # Bubble plot: use latest year in selected range
+    bubble_year = to_year
+    bubble_data = avg_schooling_df[
+        (avg_schooling_df['Country Code'].isin(selected_countries)) &
+        (avg_schooling_df['Year'] == bubble_year)
+    ].copy()
+
+    bubble_data = bubble_data.merge(
+        pisa_avg,
+        left_on='Country',
+        right_on='Countries',
+        how='left'
+    )
+    
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if bubble_data.empty:
+            st.info("No average years of schooling data available for the selected countries and years.")
+        else:
+            # Fill missing PISA scores for clear "No Data" indication
+            min_pisa = bubble_data['PISA average scores, 2022'].min()
+            fillna_val = int(min_pisa - 165) if pd.notnull(min_pisa) else -999
+            bubble_data['PISA average scores, 2022'] = bubble_data['PISA average scores, 2022'].fillna(fillna_val)
+            bubble_data['PISA average score 2022'] = bubble_data['PISA average scores, 2022'].apply(
+                lambda x: "No Pisa Data" if x == fillna_val else round(x, 2)
+            )
+            bubble_plot = create_bubble(
+                bubble_data,
+                x='GDP (PPP)',
+                y='Average Years of Schooling',
+                size='PISA average scores, 2022',
+                size_label='PISA average score 2022',
+                x_label='GDP (US$)',
+                y_label='Average Years of Schooling',
+                text_label='Country',
+                custom_tooltip=True,
+                tooltip_columns=[
+                    'Country',
+                    'Country Code',
+                    'Region (OWID)',
+                    'Year',
+                    'GDP (PPP)',
+                    'Average Years of Schooling',
+                    'PISA average score 2022'
+                ], height=height
+            )
+            st.plotly_chart(bubble_plot, use_container_width=True)
+
+    with col2:
+        # Line plot: all years in selected range
+        line_data = avg_schooling_df[
+            (avg_schooling_df['Country Code'].isin(selected_countries)) &
+            (avg_schooling_df['Year'] >= from_year) &
+            (avg_schooling_df['Year'] <= to_year)
+        ].copy()
+        if line_data.empty:
+            st.info("No average years of schooling data available for the selected countries and years.")
+        else:
+            line = create_line_chart(
+                df=line_data,
+                x='GDP (PPP)',
+                y='Average Years of Schooling',
+                color='Country Code',
+                height=height,
+            )
+            st.plotly_chart(line, use_container_width=True)
+            # st.line_chart(
+            #     data=line_data,
+            #     x='GDP (PPP)',
+            #     y='Average Years of Schooling',
+            #     color='Country Code',
+            #     use_container_width=True,
+            # )
 
 def create_line_chart(df, x, y, color=None, x_label=None, y_label=None, 
                         custom_tooltip=False, tooltip_columns=None, 
@@ -148,7 +230,6 @@ def create_line_chart(df, x, y, color=None, x_label=None, y_label=None,
         height=height,
         hovermode='x unified',
         showlegend=True,
-        title=None,  
         legend=dict(
             orientation="h",
             yanchor="bottom",
