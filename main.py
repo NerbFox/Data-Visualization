@@ -463,7 +463,10 @@ if filtered_education_expenditure.empty:
     st.info("No education expenditure data available for the selected countries and years.")
 else:
     # Chart type selection
-    st.subheader("📈 Education Expenditure Trends", divider='gray')
+    # st.markdown('---')
+    st.subheader("🪙 Education Expenditure Trends", divider='gray', 
+                 help="**Education Expenditure**: Government spending on education as a percentage of total government expenditure. This includes local, regional, and national budgets, plus international funding given to the government.\n\n"
+            )
     option = st.radio(
         'Education Expenditure Chart Type:',
         ['Line Chart', 'Bar Chart'],
@@ -473,9 +476,8 @@ else:
     
     # Create visualizations based on user selection
     if option == 'Line Chart':
-        st.subheader(f"📈 Education Expenditure Trends ({from_year} - {to_year})", divider='gray',
-                help="**Education Expenditure**: Government spending on education as a percentage of total government expenditure. This includes local, regional, and national budgets, plus international funding given to the government.\n\n"
-            )
+        st.markdown(f"#### 📈 Education Expenditure Trends ({from_year} - {to_year})")
+                
                      
         # st.markdown("*Click on the legend to hide/highlight it*")
         
@@ -504,9 +506,7 @@ else:
                 help="Choose which year to compare countries"
             )
         with col1:
-            st.subheader(f"📊 Education Expenditure Comparison ({bar_year})", divider='gray',
-                        help="**Education Expenditure**: Government spending on education as a percentage of total government expenditure. This includes local, regional, and national budgets, plus international funding given to the government.\n\n"
-                        )
+            st.markdown(f"#### 📊 Education Expenditure Comparison ({bar_year})")
         
         
         # Filter data for selected year
