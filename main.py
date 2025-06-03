@@ -85,6 +85,37 @@ df_list_cleaned = [
     pisa_science_scores
 ]
 
+# Inner join df_avg_years_school_gdp with gdp_df and education_expenditure on 'Country Code' and 'Entity
+# gdp_df_copy = gdp_df.rename(columns={'Country Code': 'Code', 'Country Name': 'Entity'})
+# df_merge_country = df_avg_years_school_gdp.merge(
+#     gdp_df_copy[[]],
+#     on=['Code', 'Entity'],
+#     how='inner'
+# ).merge(
+#     education_expenditure,
+#     on=['Code', 'Entity'],
+#     how='inner'
+# )
+
+# Exclude countries that have no single data point in average years of schooling and expenditure
+# df_merge_country = df_merge_country[
+#     df_merge_country['Average years of schooling'].notna() &
+#     df_merge_country['Government expenditure on education, total (% of government expenditure)'].notna()
+# ]
+
+# # Save to csv in folder data
+# df_merge_country.to_csv(DATA_DIR + 'df_merge_country.csv', index=False)
+
+# Read data from CSV
+# df_merge_country = pd.read_csv(DATA_DIR + 'df_merge_country.csv')
+
+# Take unique entity and code and save it to csv
+# df_unique_countries = df_merge_country[['Entity', 'Code']].drop_duplicates().reset_index(drop=True)
+# df_unique_countries.to_csv(DATA_DIR + 'df_unique_countries.csv', index=False)
+
+df_unique_countries = pd.read_csv(DATA_DIR + 'df_unique_countries.csv')
+df_unique_countries = df_unique_countries.rename(columns={'Entity': 'Country Name', 'Code': 'Country Code'})
+
 # Preprocess the data
 preprocess_data(dfs=df_list_cleaned)
 
@@ -117,15 +148,15 @@ Select the year range and countries to analyze the data.
 #     options=sorted(education_gdp['Entity'].unique()),
 #     index=education_gdp['Entity'].unique().tolist().index('Indonesia') if 'Indonesia' in education_gdp['Entity'].unique() else 0
 # )
-sorted_country_names = sorted(gdp_df['Country Name'].unique())
+sorted_country_names = sorted(df_unique_countries['Country Name'].unique())
 highlight_country = st.sidebar.selectbox(
     'Main Country',
     options=sorted_country_names,
     index = sorted_country_names.index('Indonesia') if 'Indonesia' in sorted_country_names else 0
 )
 
-entity_to_code = gdp_df.dropna(subset=['Country Code']).drop_duplicates("Country Name")[["Country Name", "Country Code"]].set_index("Country Name")["Country Code"].to_dict()
-code_to_entity = gdp_df.dropna(subset=['Country Code']).drop_duplicates("Country Code")[["Country Code", "Country Name"]].set_index("Country Code")["Country Name"].to_dict()
+entity_to_code = df_unique_countries.dropna(subset=['Country Code']).drop_duplicates("Country Name")[["Country Name", "Country Code"]].set_index("Country Name")["Country Code"].to_dict()
+code_to_entity = df_unique_countries.dropna(subset=['Country Code']).drop_duplicates("Country Code")[["Country Code", "Country Name"]].set_index("Country Code")["Country Name"].to_dict()
 
 highlight_country = entity_to_code.get(highlight_country, None)
 
@@ -137,7 +168,7 @@ from_year, to_year = st.sidebar.slider(
 )
 
 
-countries = gdp_df['Country Code'].unique()
+countries = df_unique_countries['Country Code'].unique()
 
 # Indonesia, Singapore, USA, China, Japan, Korea (3 letters)
 # There is n/a for certain years in some countries, 
@@ -167,6 +198,17 @@ filtered_education_expenditure = education_expenditure[
     (education_expenditure['Year'] >= from_year) &
     (education_expenditure['Year'] <= to_year)
 ]
+
+# Round expenditure values to 3 decimal places
+filtered_education_expenditure['Government expenditure on education, total (% of government expenditure)'] = filtered_education_expenditure[
+    'Government expenditure on education, total (% of government expenditure)'
+].round(3)
+
+filtered_avg_schooling = df_avg_years_school_gdp[
+    (df_avg_years_school_gdp['Code'].isin(selected_countries)) &
+    (df_avg_years_school_gdp['Year'] >= from_year) &
+    (df_avg_years_school_gdp['Year'] <= to_year)
+].dropna(subset=['Average years of schooling', 'GDP per capita, PPP (constant 2021 international $)'])
 
 # -----------------------------------------------------------------------------
 # Metrics for selected years
@@ -274,7 +316,7 @@ else:
     science_pisa_rank = ""
 
 # --- Display ---
-st.subheader(f'Highlights Up to {metric_final_year}', divider='gray')
+st.subheader(f'{highlight_country_name} Highlights Up to {metric_final_year}', divider='gray')
 
 indicators = [
     {
@@ -287,7 +329,11 @@ indicators = [
             f"{average_pisa_score:.2f} (Rank {average_pisa_rank})"
             if average_pisa_score != "No Data" else "No Data"
         ),
-        "help": (
+        "help": 
+        (
+            f"**Description**: "
+            f"The Programme for International Student Assessment (PISA) is a worldwide study by the Organisation for Economic Co-operation and Development (OECD) intended to evaluate educational systems by measuring 15-year-old school pupils' performance on math, science, and reading. \n\n"
+        ) + (
             f"**PISA Reading Score**: "
             f"{highlight_pisa_reading_score:.3f} ({reading_pisa_rank})  \n"
             if highlight_pisa_reading_score != "No Data" else
@@ -313,6 +359,12 @@ title_to_start_year = {
     "Avg. Years of Schooling": start_average_school_gdp_year
 }
 
+help_map = {
+    "Literacy Rate": f"**Description**: Literacy rates measure the share of people who can read and write, typically assessed through self-reports, literacy tests, or estimates based on education levels. Countries use various methods, including surveys, censuses, and indirect data.\n\n",
+    "Education Expenditure": f"**Description**: Government spending on education is shown as a percentage of total government spending across all sectors. It includes local, regional, and national budgets, plus international funding given to the government.\n\n",
+    "Avg. Years of Schooling": f"**Description**: Average number of years (excluding years spent repeating individual grades) adults over 25 years participated in formal education.\n\n"
+}
+
 unit_map = {
     "Education Expenditure": "%",
     "Literacy Rate": "%",
@@ -326,13 +378,14 @@ for i, df in enumerate(final_metric_dfs):
     first_value = first_metrics[i]
     start_year = title_to_start_year.get(title)
     unit = unit_map.get(title, "")
+    help_text = help_map.get(title, "")
 
     if start_year and last_year:
-        help_text = f"Data shown is from {start_year}"
+        help_text += f"Data shown is from {start_year}"
         if start_year != last_year:
             help_text += f" to {last_year}."
     else:
-        help_text = "No available data exists for the selected country"
+        help_text += "No available data exists for the selected country"
 
     indicators.append({
         "label": title,
@@ -385,15 +438,22 @@ avg_schooling_df = df_avg_years_school_gdp.rename(
 )
 
 # st.markdown('### :school: Average Years of Schooling vs GDP')
-st.subheader(':school: Average Years of Schooling vs GDP', divider='gray')
-display_two_vis(
-    avg_schooling_df=avg_schooling_df,
-    pisa_avg=pisa_avg,
-    selected_countries=selected_countries,
-    from_year=from_year,
-    to_year=to_year,
-    height=400,
-)
+# st.subheader(':school: Average Years of Schooling vs GDP', divider='gray',
+#                 help="**Average Years of Schooling**: Average number of years (excluding years spent repeating individual grades) adults over 25 years participated in formal education.\n\n" +
+#                 "**GDP**: Average economic output per person in a country or region per year. This data is adjusted for inflation and for differences in living costs between countries.\n\n"
+#             )
+# Check if df from selected years is empty
+if filtered_avg_schooling.empty:
+    st.info("No average years of schooling data available for the selected countries and years.")
+else:
+    display_two_vis(
+        avg_schooling_df=avg_schooling_df,
+        pisa_avg=pisa_avg,
+        selected_countries=selected_countries,
+        from_year=from_year,
+        to_year=to_year,
+        height=400,
+    )
 
 # -----------------------------------------------------------------------------
 
@@ -411,8 +471,11 @@ else:
     
     # Create visualizations based on user selection
     if option == 'Line Chart':
-        st.subheader("📈 Education Expenditure Trends", divider='gray')
-        st.markdown("*Click on a line in the legend or chart to highlight it*")
+        st.subheader(f"📈 Education Expenditure Trends ({from_year} - {to_year})", divider='gray',
+                help="**Education Expenditure**: Government spending on education as a percentage of total government expenditure. This includes local, regional, and national budgets, plus international funding given to the government.\n\n"
+            )
+                     
+        # st.markdown("*Click on a line in the legend or chart to highlight it*")
         
         chart = create_line_chart(
             df=filtered_education_expenditure,
@@ -420,7 +483,7 @@ else:
             y='Government expenditure on education, total (% of government expenditure)',
             color='Code',
             x_label='Year',
-            y_label='Education Expenditure (% of Gov. Expenditure)',
+            y_label='Gov. Education Expenditure (%)',
             height=500,
             show_markers=True,
         )
@@ -432,15 +495,17 @@ else:
         # Bar chart options
         col1, col2 = st.columns([2, 1])
         
-        with col1:
-            st.markdown("### 📊 Education Expenditure Comparison")
-        
         with col2:
             bar_year = st.selectbox(
                 'Select Year:',
                 options=sorted(filtered_education_expenditure['Year'].unique(), reverse=True),
                 help="Choose which year to compare countries"
             )
+        with col1:
+            st.subheader(f"📊 Education Expenditure Comparison ({bar_year})", divider='gray',
+                        help="**Education Expenditure**: Government spending on education as a percentage of total government expenditure. This includes local, regional, and national budgets, plus international funding given to the government.\n\n"
+                        )
+        
         
         # Filter data for selected year
         bar_data = filtered_education_expenditure[
@@ -454,7 +519,7 @@ else:
                 y='Government expenditure on education, total (% of government expenditure)',
                 color='Code',
                 x_label='Country Code',
-                y_label='Education Expenditure (% of Gov. Expenditure)',
+                y_label='Gov. Education Expenditure (%)',
                 height=500,
                 sort_values=True
             )

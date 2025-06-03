@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import streamlit as st
 
-def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, custom_tooltip=False, tooltip_columns=None, height=500):
+def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, custom_tooltip=False, tooltip_columns=None, height=500, title=None):
     """
     Create a bubble chart with color and legend support.
     """
@@ -16,6 +16,7 @@ def create_bubble(df, x, y, size, x_label, y_label, size_label, text_label, cust
         # {col: True for col in tooltip_columns}
     fig = px.scatter(
         data_frame=df,
+        title=title,
         x=x,
         y=y,
         size=size,
@@ -101,6 +102,12 @@ def display_two_vis(
     for average years of schooling vs GDP, with PISA scores as bubble size.
     """
     # Bubble plot: use latest year in selected range
+    # Round numeric values to 3 decimal places
+    # Convert GDP (PPP) to millions for better readability
+    avg_schooling_df['GDP (PPP)'] = avg_schooling_df['GDP (PPP)'].apply(
+        lambda x: round(x / 1e3, 3) if pd.notnull(x) else x
+    )
+    avg_schooling_df['Average Years of Schooling'] = avg_schooling_df['Average Years of Schooling'].round(3)
     bubble_year = to_year
     bubble_data = avg_schooling_df[
         (avg_schooling_df['Country Code'].isin(selected_countries)) &
@@ -121,6 +128,11 @@ def display_two_vis(
             st.info("No average years of schooling data available for the selected countries and years.")
         else:
             # Fill missing PISA scores for clear "No Data" indication
+            st.subheader(f"📖 Average Years of Schooling vs GDP ({bubble_year})", divider="gray",
+                help="**Average Years of Schooling**: Average number of years (excluding years spent repeating individual grades) adults over 25 years participated in formal education.\n\n" +
+                "**GDP**: Average economic output per person in a country or region per year. This data is adjusted for inflation and for differences in living costs between countries.\n\n"
+                )
+
             min_pisa = bubble_data['PISA average scores, 2022'].min()
             fillna_val = int(min_pisa - 165) if pd.notnull(min_pisa) else -999
             bubble_data['PISA average scores, 2022'] = bubble_data['PISA average scores, 2022'].fillna(fillna_val)
@@ -133,14 +145,14 @@ def display_two_vis(
                 y='Average Years of Schooling',
                 size='PISA average scores, 2022',
                 size_label='PISA average score 2022',
-                x_label='GDP (US$)',
+                x_label='GDP (Thousand USD)',
                 y_label='Average Years of Schooling',
                 text_label='Country',
                 custom_tooltip=True,
                 tooltip_columns=[
                     'Country',
                     'Country Code',
-                    'Region (OWID)',
+                    # 'Region (OWID)',
                     'Year',
                     'GDP (PPP)',
                     'Average Years of Schooling',
@@ -159,10 +171,15 @@ def display_two_vis(
         if line_data.empty:
             st.info("No average years of schooling data available for the selected countries and years.")
         else:
+            st.subheader(f"🏫 Average Years of Schooling vs GDP ({from_year} to {to_year})", divider="gray",
+                help="**Average Years of Schooling**: Average number of years (excluding years spent repeating individual grades) adults over 25 years participated in formal education.\n\n" +
+                "**GDP**: Average economic output per person in a country or region per year. This data is adjusted for inflation and for differences in living costs between countries.\n\n"
+                )
             line = create_line_chart(
                 df=line_data,
                 x='GDP (PPP)',
                 y='Average Years of Schooling',
+                x_label='GDP (Thousand USD)',
                 color='Country Code',
                 height=height,
             )
