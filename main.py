@@ -289,9 +289,20 @@ indicators = [
             if average_pisa_score != "No Data" else "No Data"
         ),
         "help": (
-            f"**PISA Reading Score**: {highlight_pisa_reading_score:.3f} ({reading_pisa_rank})  \n"
-            f"**PISA Math Score**: {highlight_pisa_math_score:.3f} ({math_pisa_rank})  \n"
-            f"**PISA Science Score**: {highlight_pisa_science_score:.3f} ({science_pisa_rank})"
+            f"**PISA Reading Score**: "
+            f"{highlight_pisa_reading_score:.3f} ({reading_pisa_rank})  \n"
+            if highlight_pisa_reading_score != "No Data" else
+            "**PISA Reading Score**: No Data\n"
+        ) + (
+            f"**PISA Math Score**: "
+            f"{highlight_pisa_math_score:.3f} ({math_pisa_rank})  \n"
+            if highlight_pisa_math_score != "No Data" else
+            "**PISA Math Score**: No Data\n"
+        ) + (
+            f"**PISA Science Score**: "
+            f"{highlight_pisa_science_score:.3f} ({science_pisa_rank})"
+            if highlight_pisa_science_score != "No Data" else
+            "**PISA Science Score**: No Data"
         ),
         "unit": ""
     }
