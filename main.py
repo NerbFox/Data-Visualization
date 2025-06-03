@@ -483,7 +483,7 @@ else:
         selected_countries=selected_countries,
         from_year=from_year,
         to_year=to_year,
-        height=400,
+        height=500,
     )
 
 # -----------------------------------------------------------------------------
