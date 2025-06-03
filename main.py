@@ -170,8 +170,9 @@ from_year, to_year = st.sidebar.slider(
 
 countries = df_unique_countries['Country Code'].unique()
 
-default_countries = ['SGP', 'USA', 'CHN', 'CHE', 'BRA', 'CAN', 'CHL', 'COL', 'HRV']
-    
+# default_countries = ['SGP', 'USA', 'CHN', 'CHE', 'BRA', 'CAN', 'CHL', 'COL', 'HRV']
+default_countries = ['SGP', 'CHE', 'BRA', 'HRV']
+
 selected_countries = st.sidebar.multiselect(
     'Which countries would you like to view?',
     options=sorted(countries),

@@ -11,7 +11,7 @@ class Config:
     __PAGE_TITLE: str = 'Education Dashboard'
     __PAGE_ICON: PageIcon = ':earth_americas:'
     __LAYOUT: Layout = 'wide'
-    __INIT_SIDEBAR_STATE: InitialSideBarState = 'auto'
+    __INIT_SIDEBAR_STATE: InitialSideBarState = 'expanded'
     __MENU_ITEMS: MenuItems =  {
         'About': 'This is a sample education dashboard built with Streamlit.',        
     }
