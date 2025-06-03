@@ -168,13 +168,9 @@ from_year, to_year = st.sidebar.slider(
     value=[min_year, max_year]
 )
 
-
 countries = df_unique_countries['Country Code'].unique()
 
-# Indonesia, Singapore, USA, China, Japan, Korea (3 letters)
-# There is n/a for certain years in some countries, 
-default_countries = ['SGP', 'USA', 'CHN', 'JPN', 'KOR']
-
+default_countries = ['SGP', 'USA', 'CHN', 'CHE', 'BRA', 'CAN', 'CHL', 'COL', 'HRV']
     
 selected_countries = st.sidebar.multiselect(
     'Which countries would you like to view?',
@@ -211,6 +207,39 @@ filtered_avg_schooling = df_avg_years_school_gdp[
     (df_avg_years_school_gdp['Year'] <= to_year)
 ].dropna(subset=['Average years of schooling', 'GDP per capita, PPP (constant 2021 international $)'])
 
+# rename 
+filtered_education_literacy = education_literacy.rename(
+    columns={
+        'Literacy rate': 'Literacy Rate',
+        'Code': 'Country Code',
+        'Entity': 'Country'
+    }
+)
+
+# merge unemployment and average years of schooling based on year and code
+filtered_unemployment = unemployment.merge(
+    df_avg_years_school_gdp,
+    on=['Entity', 'Code', 'Year'],
+    how='inner'
+)
+
+filtered_unemployment = filtered_unemployment.rename(
+    columns={
+        'Code': 'Country Code',
+        'Entity': 'Country',
+        'Average years of schooling' :'Average years of schooling',
+        'Unemployment, total (% of total labor force) (modeled ILO estimate)':'Unemployment Rate'
+    }
+)
+
+
+# filtered_unemployment = filtered_unemployment.dropna(subset=['Unemployment Rate'])
+# st.markdown(f'{filtered_unemployment[:1]}')
+# st.markdown(f'{df_avg_years_school_gdp[:1]}')
+# rename
+
+# st markdown df
+# st.markdown(f'{filtered_education_expenditure.head(5)}')
 # -----------------------------------------------------------------------------
 # Metrics for selected years
 
@@ -449,6 +478,7 @@ if filtered_avg_schooling.empty:
 else:
     display_two_vis(
         avg_schooling_df=avg_schooling_df,
+        unemployment_df=filtered_unemployment,
         pisa_avg=pisa_avg,
         selected_countries=selected_countries,
         from_year=from_year,

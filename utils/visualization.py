@@ -95,7 +95,7 @@ def remove_nans(df):
     return df
 
 def display_two_vis(
-    avg_schooling_df, pisa_avg, selected_countries, from_year, to_year, height=500
+    avg_schooling_df, unemployment_df, pisa_avg, selected_countries, from_year, to_year, height=500
 ):
     """
     Display a bubble plot (latest year) and a line plot (all years in range)
@@ -109,28 +109,40 @@ def display_two_vis(
     )
     avg_schooling_df['Average Years of Schooling'] = avg_schooling_df['Average Years of Schooling'].round(3)
     bubble_year = to_year
-    bubble_data = avg_schooling_df[
-        (avg_schooling_df['Country Code'].isin(selected_countries)) &
-        (avg_schooling_df['Year'] == bubble_year)
+    # literacy df column
+    # st.markdown(f'{unemployment_df.head(3)}')
+    # st.markdown(f'{pisa_avg.head(3)}')
+    bubble_data = unemployment_df[
+        (unemployment_df['Country Code'].isin(selected_countries)) &
+        (unemployment_df['Year'] == bubble_year)
     ].copy()
-
+    
+    # st.markdown(f'{bubble_data.head(3)}')
     bubble_data = bubble_data.merge(
         pisa_avg,
         left_on='Country',
         right_on='Countries',
         how='left'
     )
+    # dropna in bubble_data column literacy rate and schooling
+    bubble_data = bubble_data.dropna(
+        subset=[
+            'Unemployment Rate',
+        ]
+    )
+
+    # st.markdown(f'{bubble_data.head(1)}')
     
     col1, col2 = st.columns(2)
 
-    with col1:
+    with col2:
         if bubble_data.empty:
             st.info("No average years of schooling data available for the selected countries and years.")
         else:
             # Fill missing PISA scores for clear "No Data" indication
-            st.subheader(f"📖 Average Years of Schooling vs GDP ({bubble_year})", divider="gray",
+            st.subheader(f"📖 Average Years of Schooling vs Unemployment Rate ({bubble_year})", divider="gray",
                 help="**Average Years of Schooling**: Average number of years (excluding years spent repeating individual grades) adults over 25 years participated in formal education.\n\n" +
-                "**GDP**: Average economic output per person in a country or region per year. This data is adjusted for inflation and for differences in living costs between countries.\n\n"
+                "**Unemployment Rate**: Unemployment refers to the share of the labor force that is without work but available for and seeking employment.\n\n"
                 )
 
             min_pisa = bubble_data['PISA average scores, 2022'].min()
@@ -141,11 +153,11 @@ def display_two_vis(
             )
             bubble_plot = create_bubble(
                 bubble_data,
-                x='GDP (PPP)',
-                y='Average Years of Schooling',
+                x='Unemployment Rate',
+                y='Average years of schooling',
                 size='PISA average scores, 2022',
                 size_label='PISA average score 2022',
-                x_label='GDP (Thousand USD)',
+                x_label='Unemployment Rate (%)',
                 y_label='Average Years of Schooling',
                 text_label='Country',
                 custom_tooltip=True,
@@ -154,14 +166,14 @@ def display_two_vis(
                     'Country Code',
                     # 'Region (OWID)',
                     'Year',
-                    'GDP (PPP)',
-                    'Average Years of Schooling',
+                    'Unemployment Rate',
+                    'Average years of schooling',
                     'PISA average score 2022'
                 ], height=height
             )
             st.plotly_chart(bubble_plot, use_container_width=True)
 
-    with col2:
+    with col1:
         # Line plot: all years in selected range
         line_data = avg_schooling_df[
             (avg_schooling_df['Country Code'].isin(selected_countries)) &
@@ -182,6 +194,7 @@ def display_two_vis(
                 x_label='GDP (Thousand USD)',
                 color='Country Code',
                 height=height,
+                show_markers=False
             )
             st.plotly_chart(line, use_container_width=True)
             # st.line_chart(
