@@ -30,6 +30,7 @@ from config import Config
 
 st.set_page_config(**Config.PAGE_CONFIG)
 
+
 # -----------------------------------------------------------------------------
 # Data loading and transformation
 # -----------------------------------------------------------------------------
@@ -462,6 +463,7 @@ if filtered_education_expenditure.empty:
     st.info("No education expenditure data available for the selected countries and years.")
 else:
     # Chart type selection
+    st.subheader("📈 Education Expenditure Trends", divider='gray')
     option = st.radio(
         'Education Expenditure Chart Type:',
         ['Line Chart', 'Bar Chart'],
@@ -475,7 +477,7 @@ else:
                 help="**Education Expenditure**: Government spending on education as a percentage of total government expenditure. This includes local, regional, and national budgets, plus international funding given to the government.\n\n"
             )
                      
-        # st.markdown("*Click on a line in the legend or chart to highlight it*")
+        # st.markdown("*Click on the legend to hide/highlight it*")
         
         chart = create_line_chart(
             df=filtered_education_expenditure,
@@ -527,14 +529,3 @@ else:
             
         else:
             st.warning(f"No data available for {bar_year}.")
-
-
-
-# if not filtered_gdp_df.empty:
-#     # Add GDP in billions of USD
-#     filtered_gdp_df = filtered_gdp_df.copy()
-#     filtered_gdp_df['GDP (Billions USD)'] = filtered_gdp_df['GDP'] / 1e9
-# else:
-#     st.info("No data available for the selected countries and years.")
-
-# -----------------------------------------------------------------------------
