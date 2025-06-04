@@ -177,6 +177,7 @@ selected_countries = st.sidebar.multiselect(
     'Which countries would you like to view?',
     options=sorted(countries),
     default=[c for c in [highlight_country if highlight_country not in default_countries else None] + default_countries if c in countries ],
+    max_selections=7,
 )
 
 if not selected_countries:
